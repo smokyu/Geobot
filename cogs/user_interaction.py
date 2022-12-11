@@ -2,22 +2,26 @@ import asyncio
 from unicodedata import name
 import discord
 import random
-from discord.ext import commands
+import time
+import datetime
+from discord.ext import commands, tasks
 from discord.utils import get
 from discord.errors import Forbidden
 from discord import app_commands
 from discord.app_commands import Choice
 from cogs.Data.database_handler import DatabaseHandler
+from constants import GUILD_ID, VERSION
 
 database_handler = DatabaseHandler('database.db')
-FANBOT_VERSION = "BÊTA"
+now = datetime.datetime.now()
 
 
 async def setup(bot):
-    await bot.add_cog(Response(bot), guilds=[discord.Object(id=976578012592111646)])
-    await bot.add_cog(Games(bot), guilds=[discord.Object(id=976578012592111646)])
-    await bot.add_cog(Ticket(bot), guilds=[discord.Object(id=976578012592111646)])
-    await bot.add_cog(Help(bot), guilds=[discord.Object(id=976578012592111646)])
+    await bot.add_cog(Response(bot), guilds=[discord.Object(id=GUILD_ID)])
+    await bot.add_cog(Games(bot), guilds=[discord.Object(id=GUILD_ID)])
+    await bot.add_cog(Ticket(bot), guilds=[discord.Object(id=GUILD_ID)])
+    await bot.add_cog(Daily(bot), guilds=[discord.Object(id=GUILD_ID)])
+    await bot.add_cog(Help(bot), guilds=[discord.Object(id=GUILD_ID)])
     
 
 class Response(commands.Cog):
@@ -111,7 +115,72 @@ class Ticket(commands.Cog):
         await interaction.response.send_message(f"Bonjour {interaction.user.mention} ! Un ticket a été créé pour toi.")
         await channel.send(f"Bonjour {interaction.user.mention}, présente nous ton problème ici !")
 
+class Daily(commands.Cog):
+    def __init__(self, fanbot):
+        self.fanbot = fanbot
+    
+    @commands.Cog.listener()
+    async def on_ready(self):
+        self.reset_daily.start()
 
+    @tasks.loop(time=datetime.time(0, 0, 0, 0))
+    async def reset_daily(self):
+        
+        database_handler.clear_user_daily_command()
+
+        date = datetime.date.today()
+        today = date.weekday()
+        data = database_handler.get_user_and_score_in_daily_score()
+        
+        users_already_used = []
+        detected = False
+        
+        if today == 3:
+            for i in data:
+                for user_already_used in users_already_used:
+                    if user_already_used == i["user_id"]:
+                        detected = True
+                if detected == False:
+                    users_already_used.append(i["user_id"])
+                    inv = database_handler.get_inventory(user_id=i["user_id"])
+                    token_already_in_inv = False
+                    daily_token = database_handler.get_item_id_by_item_name(item_name="Jeton journalier")
+                    for item in inv:
+                        if "Jeton journalier" == item["item_name"]:
+                            token_already_in_inv = True
+                    if token_already_in_inv:
+                        database_handler.add_amount_item_to_inv(user_id=int(i["user_id"]), item_id=int(daily_token[0]), amount=int(i["score"]))
+                    else:
+                        database_handler.add_item_to_inv(user_id=int(i["user_id"]), item_id=int(daily_token[0]), amount=int(i["score"]))
+                        
+        database_handler.reset_all_scores()
+
+    @commands.command(help="Recevoir sa récompense journalière", aliases=["daily", "dg"])
+    async def dailygift(self, ctx):
+        await ctx.message.delete()
+        
+        users = database_handler.get_users_in_daily_command()
+        
+        for user in users:
+            if ctx.message.author.id == user["user_id"]:
+                await ctx.send("Tu as déjà fais `!daily` aujourd'hui. Reviens demain !")
+                return
+        
+        item_id = database_handler.get_item_id_by_item_name(item_name="Jeton journalier")
+
+        users = database_handler.get_users_in_daily_score()
+        
+        detected = False
+        
+        for user in users:
+            if ctx.message.author.id == user["user_id"]:
+                detected = True
+        if detected == False:
+            database_handler.add_user_id_to_daily_score_table(user_id=ctx.message.author.id)
+
+        database_handler.add_score_daily_command(user_id=ctx.message.author.id)
+        database_handler.add_user_to_userlist_daily_command(user_id=ctx.message.author.id)
+        
 async def send_embed(ctx, embed):
     try:
         await ctx.send(embed=embed)
@@ -134,7 +203,7 @@ class Help(commands.Cog):
     async def help(self, ctx, *input):
         await ctx.message.delete()
         prefix = "!"
-        version = FANBOT_VERSION
+        version = VERSION
 
         owner = 447791268505059349
         owner_name = "BibYTB84#8143"

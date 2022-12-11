@@ -189,15 +189,15 @@ class DatabaseHandler():
 
     def add_amount_item_to_inv(self, user_id: int, item_id: int, amount: int):
         cursor = self.connection.cursor()
-        query = "SELECT amount FROM Inventory WHERE user_id = ?;"
-        cursor.execute(query, (user_id,))
+        query = "SELECT amount FROM Inventory WHERE user_id = ? AND item_id = ?;"
+        cursor.execute(query, (user_id, item_id))
         result = cursor.fetchone()
 
         try:
             current_amount = result[0]
         finally:
-            query = "UPDATE Inventory SET amount = ? WHERE user_id = ?;"
-            cursor.execute(query, (current_amount + amount, user_id))
+            query = "UPDATE Inventory SET amount = ? WHERE user_id = ? AND item_id = ?;"
+            cursor.execute(query, (current_amount + amount, user_id, item_id))
             cursor.close()
             self.connection.commit()
 
@@ -433,7 +433,7 @@ class DatabaseHandler():
         
     def get_patents(self):
         cursor = self.connection.cursor()
-        query = "SELECT * from Patents;"
+        query = "SELECT * FROM Patents;"
         cursor.execute(query)
         result = cursor.fetchall()
         cursor.close()
@@ -453,3 +453,79 @@ class DatabaseHandler():
         cursor.execute(query, (patent_id,))
         cursor.close()
         self.connection.commit()
+
+    def add_user_to_userlist_daily_command(self, user_id: int):
+        cursor = self.connection.cursor()
+        query = "INSERT INTO Daily_Users (user_id) VALUES (?);"
+        cursor.execute(query, (user_id,))
+        cursor.close()
+        self.connection.commit()
+
+    def clear_user_daily_command(self):
+        cursor = self.connection.cursor()
+        query = "DELETE FROM Daily_Users;"
+        cursor.execute(query)
+        cursor.close()
+        self.connection.commit()
+        
+    def add_score_daily_command(self, user_id):
+        cursor = self.connection.cursor()
+        query = "SELECT score FROM Daily_Score WHERE user_id = ?;"
+        cursor.execute(query, (user_id,))
+        result = cursor.fetchone()
+        try:
+            score = result[0]
+        finally:
+            query = "UPDATE Daily_Score SET score = ? WHERE user_id = ?;"
+            cursor.execute(query, (score + 1, user_id))
+            cursor.close()
+            self.connection.commit()
+
+    def get_users_in_daily_score(self):
+        cursor = self.connection.cursor()
+        query = "SELECT user_id FROM Daily_Score;"
+        cursor.execute(query)
+        result = cursor.fetchall()
+        cursor.close()
+        result = map(dict, result)
+        return result
+
+    def add_user_id_to_daily_score_table(self, user_id: int):
+        cursor = self.connection.cursor()
+        query = "INSERT INTO Daily_Score (user_id, score) VALUES (?, ?);"
+        cursor.execute(query, (user_id, 0))
+        cursor.close()
+        self.connection.commit()
+
+    def reset_all_scores(self):
+        cursor = self.connection.cursor()
+        query = "DELETE FROM Daily_Score;"
+        cursor.execute(query)
+        cursor.close()
+        self.connection.commit()
+        
+    def get_last_time_score_reset(self):
+        cursor = self.connection.cursor()
+        query = "SELECT number_of_days FROM Time WHERE obj = ?;"
+        cursor.execute(query, ("Score",))
+        result = cursor.fetchone()
+        cursor.close()
+        return result
+
+    def get_user_and_score_in_daily_score(self):
+        cursor = self.connection.cursor()
+        query = "SELECT * FROM Daily_Score;"
+        cursor.execute(query)
+        result = cursor.fetchall()
+        cursor.close()
+        result = map(dict, result)
+        return result
+    
+    def get_users_in_daily_command(self):
+        cursor = self.connection.cursor()
+        query = "SELECT user_id FROM Daily_Users;"
+        cursor.execute(query)
+        result = cursor.fetchall()
+        cursor.close()
+        result = map(dict, result)
+        return result

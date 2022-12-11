@@ -7,16 +7,18 @@ from discord.ext import commands, tasks
 from discord.utils import get
 from discord.errors import Forbidden
 from cogs.Data.database_handler import DatabaseHandler
-
+from constants import GUILD_ID
 
 database_handler = DatabaseHandler('database.db')
 now = datetime.datetime.now()
 
 
 async def setup(bot):
-    await bot.add_cog(FixDatabase(bot), guilds=[discord.Object(id=976578012592111646)])
-    await bot.add_cog(Status(bot), guilds=[discord.Object(id=976578012592111646)])
-    await bot.add_cog(Admineconomy(bot), guilds=[discord.Object(id=976578012592111646)])
+    await bot.add_cog(FixDatabase(bot), guilds=[discord.Object(id=GUILD_ID)])
+    await bot.add_cog(Status(bot), guilds=[discord.Object(id=GUILD_ID)])
+    await bot.add_cog(Admineconomy(bot), guilds=[discord.Object(id=GUILD_ID)])
+    await bot.add_cog(Adminproduction(bot), guilds=[discord.Object(id=GUILD_ID)])
+    
 
 
 class FixDatabase(commands.Cog):
@@ -62,10 +64,6 @@ class Status(commands.Cog):
 class Admineconomy(commands.Cog):
     def __init__(self, fanbot):
         self.fanbot = fanbot
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        self.update_patent.start()
 
     @commands.command(aliases=["admininv", "ainv"])
     @commands.has_permissions(administrator=True)
@@ -394,6 +392,15 @@ class Admineconomy(commands.Cog):
             await ctx.send("L'action choisie n'est pas valide !")
             return
 
+
+class Adminproduction(commands.Cog):
+    def __init__(self, fanbot):
+        self.fanbot = fanbot
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        self.update_patent.start()
+
     @commands.command()
     @commands.has_permissions(administrator=True)
     async def recipe(self, ctx):
@@ -667,18 +674,16 @@ class Admineconomy(commands.Cog):
         database_handler.edit_patent_status(patent_id=patent_id[0], status="public")
         database_handler.remove_patent_to_inventory(patent_id=patent_id[0])
         
-
     @tasks.loop(seconds=10)
     async def update_patent(self):
-        async for guild in self.fanbot.fetch_guilds(limit=50):
-            patents = database_handler.get_patents()
-            current_timestamp = time.time()
-            days = database_handler.get_brevet_time()
-            time_to_add = days[0] * 86400
+        patents = database_handler.get_patents()
+        current_timestamp = time.time()
+        days = database_handler.get_brevet_time()
+        time_to_add = days[0] * 86400
             
-            for patent in patents:
-                if patent["status"].lower() == "private":        
-                    if current_timestamp > patent["activate_time"]:
-                        database_handler.edit_patent_status(patent_id=patent["patent_id"], status="public")
-                        database_handler.remove_patent_to_inventory(patent_id=patent["patent_id"])
-                        print(f"brevet public: {patent['patent_name'].title()}")
+        for patent in patents:
+            if patent["status"].lower() == "private":        
+                if current_timestamp > patent["activate_time"]:
+                    database_handler.edit_patent_status(patent_id=patent["patent_id"], status="public")
+                    database_handler.remove_patent_to_inventory(patent_id=patent["patent_id"])
+                    print(f"brevet public: {patent['patent_name'].title()}")

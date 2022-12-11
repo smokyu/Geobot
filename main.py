@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from discord.ext import commands
 from cogs.Data.database_handler import DatabaseHandler
+from constants import GUILD_ID, VERSION
 
 cwd = os.getcwd()
 os.chdir(cwd)
@@ -15,7 +16,6 @@ database_handler = DatabaseHandler('database.db')
 class FanBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=intents)
-        self.version = "BÊTA"
 
     async def setup_hook(self):
         await self.load_extension(f"cogs.admin")
@@ -24,10 +24,10 @@ class FanBot(commands.Bot):
         await self.load_extension(f"cogs.politic")
         await self.load_extension(f"cogs.user_interaction")
 
-        await fanbot.tree.sync(guild=discord.Object(id=976578012592111646))
+        await fanbot.tree.sync(guild=discord.Object(id=GUILD_ID))
 
     async def on_ready(self):
-        print(f"{self.user.display_name} has connected. (version: {self.version})")
+        print(f"{self.user.display_name} has connected. (version: {VERSION})")
 
     async def on_member_join(self, member: discord.Member):
         database_handler.add_member_to_db(user_id=member.id)

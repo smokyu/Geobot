@@ -8,16 +8,17 @@ from discord.ext import commands
 from discord.ui import Select
 from discord.utils import get
 from cogs.Data.database_handler import DatabaseHandler
+from constants import GUILD_ID
 
 database_handler = DatabaseHandler('database.db')
 now = datetime.datetime.now()
 
 
 async def setup(bot):
-    await bot.add_cog(Economy(bot), guilds=[discord.Object(id=976578012592111646)])
-    await bot.add_cog(Company(bot), guilds=[discord.Object(id=976578012592111646)])
-    await bot.add_cog(Production(bot), guilds=[discord.Object(id=976578012592111646)])
-    await bot.add_cog(Patent(bot), guilds=[discord.Object(id=976578012592111646)])
+    await bot.add_cog(Economy(bot), guilds=[discord.Object(id=GUILD_ID)])
+    await bot.add_cog(Company(bot), guilds=[discord.Object(id=GUILD_ID)])
+    await bot.add_cog(Production(bot), guilds=[discord.Object(id=GUILD_ID)])
+    await bot.add_cog(Patent(bot), guilds=[discord.Object(id=GUILD_ID)])
 
 class Economy(commands.Cog):
     def __init__(self, fanbot: commands.Bot) -> None:
@@ -44,6 +45,7 @@ class Economy(commands.Cog):
 
     @commands.command(help="Envoyer de l'argent à quelqu'un.")
     async def pay(self, ctx, member: discord.Member = None, amount: int = 0):
+        
         if member is None:
             await ctx.send("Vous n'avez pas défini qui doit recevoir l'argent.. merci de retaper la commmande.")
             if amount == 0:
@@ -65,6 +67,12 @@ class Economy(commands.Cog):
         except IntegrityError:
             pass
 
+        current_balance = database_handler.get_account(user_id=ctx.message.author.id)
+        
+        if current_balance[0] < amount:
+            await ctx.send("Vous n'avez pas assez d'argent !")
+            return
+
         member_account = database_handler.get_account(user_id=member.id)
         author_account = database_handler.get_account(
             user_id=ctx.message.author.id)
@@ -78,7 +86,7 @@ class Economy(commands.Cog):
                               color=cogs.colors.ECONOMY_COLOR_EMBED)
         embed.add_field(name="__**Payeur**__",
                         value=f"{author.display_name} (-{str(amount)} 🪙)")
-        embed.add_field(name="__**Réceveur**__",
+        embed.add_field(name="__**Bénéficiare**__",
                         value=f"{member.display_name} (+{str(amount)} 🪙)")
 
         await ctx.send(embed=embed)

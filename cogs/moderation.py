@@ -1,12 +1,13 @@
 from email.message import Message
 import discord
 from discord.ext import commands
-from cogs.roles import getMutedRole
+from cogs.roles import getMutedRole, getMutedTextRole, getMutedAudioRole
+from constants import GUILD_ID
 
 async def setup(bot):
-    await bot.add_cog(Ban(bot), guilds = [discord.Object(id = 976578012592111646)])
-    await bot.add_cog(Kick(bot), guilds = [discord.Object(id = 976578012592111646)])
-    await bot.add_cog(MessageModeration(bot), guilds = [discord.Object(id = 976578012592111646)])
+    await bot.add_cog(Ban(bot), guilds = [discord.Object(id = GUILD_ID)])
+    await bot.add_cog(Kick(bot), guilds = [discord.Object(id = GUILD_ID)])
+    await bot.add_cog(MessageModeration(bot), guilds = [discord.Object(id = GUILD_ID)])
 
 class Ban(commands.Cog):
     def __init__(self, fanbot):
@@ -86,33 +87,68 @@ class MessageModeration(commands.Cog):
     def __init__(self, fanbot):
         self.fanbot = fanbot
 
-    @commands.command(description="")
+    @commands.command()
     @commands.has_permissions(manage_messages = True)
     async def clear(self, ctx, amount: int = 1):
         await ctx.channel.purge(limit=amount + 1)
 
-    @commands.command(description="")
-    async def mute(self, ctx, user: discord.Member=None, *, reason="Aucune raison n'a été renseigné"):
+    @commands.command()
+    async def mute(self, ctx, user: discord.Member=None, *, reason: str = "Aucune raison n'a été renseigné"):
         if user is None:
-            await ctx.send("Vous n'avez pas spécifié la personne qui ne doit plus être muée. Merci de retaper la commande")
+            await ctx.send(f"{ctx.message.author.display_name} - Vous n'avez pas spécifié la personne qui doit être rendue muée. Merci de retaper la commande")
             return
         await ctx.message.delete()
         mutedRole = await getMutedRole(ctx)
         await user.add_roles(mutedRole, reason=reason)
 
         embed = discord.Embed(title="Sanction")
-        embed.add_field(name=f"Le membre **{user.mention}** est devenu mué.", description=f"Raison={reason}")
+        embed.add_field(name=f"Le membre **{user.display_name}** est devenu mué.", value=f"__Raison=__ {reason}")
         await ctx.send(embed=embed)
 
-    @commands.command(description="")
-    async def unmute(self, ctx, user: discord.Member=None, *, reason="Aucune raison n'a été renseigné"):
+    @commands.command()
+    async def mutetext(self, ctx, user: discord.Member=None, *, reason: str = "Aucune raison n'a été renseigné"):
+        await ctx.message.delete()
         if user is None:
-            await ctx.send("Vous n'avez pas spécifié la personne qui ne doit plus être muée. Merci de retaper la commande")
+            await ctx.send(f"{ctx.message.author.display_name} - Vous n'avez pas spécifié la personne qui ne doit plus utiliser le chat textuel. Merci de retaper la commande")
+            return
+        
+        mutedTextRole = await getMutedTextRole(ctx)
+        await user.add_roles(mutedTextRole, reason=reason)
+
+        embed = discord.Embed(title="Sanction")
+        embed.add_field(name=f"Le clavier de **{user.display_name}** a été désactivé.", value=f"__Raison=__ {reason}")
+        await ctx.send(embed=embed)
+
+    @commands.command()
+    async def mutevocal(self, ctx, user: discord.Member=None, *, reason: str = "Aucune raison n'a été renseigné"):
+        await ctx.message.delete()
+        if user is None:
+            await ctx.send(f"{ctx.message.author.display_name} - Vous n'avez pas spécifié la personne qui ne doit plus utiliser le chat textuel. Merci de retaper la commande")
+            return
+        
+        mutedAudioRole = await getMutedAudioRole(ctx)
+        await user.add_roles(mutedAudioRole, reason=reason)
+
+        embed = discord.Embed(title="Sanction")
+        embed.add_field(name=f"Le micro de **{user.display_name}** a été désactivé.", value=f"__Raison=__ {reason}")
+        await ctx.send(embed=embed)
+
+    @commands.command()
+    async def unmute(self, ctx, user: discord.Member=None, *, reason: str = "Aucune raison n'a été renseigné"):
+        if user is None:
+            await ctx.send(f"{ctx.message.author.display_name} - Vous n'avez pas spécifié la personne qui ne doit plus être muée. Merci de retaper la commande")
             return
         await ctx.message.delete()
         mutedRole = await getMutedRole(ctx)
-        await user.remove_roles(mutedRole, reason=reason)
+        mutedTextRole = await getMutedTextRole(ctx)
+        mutedAudioRole = await getMutedAudioRole(ctx)
+        if mutedRole in user.roles:
+            await user.remove_roles(mutedRole, reason=reason)
+        if mutedTextRole in user.roles:
+            await user.remove_roles(mutedTextRole, reason=reason)
+        if mutedAudioRole in user.roles:
+            await user.remove_roles(mutedAudioRole, reason=reason)
 
         embed = discord.Embed(title="Sanction")
-        embed.add_field(name=f"Le membre **{user.mention}** n'est plus mué.", description=f"Raison={reason}")
+        embed.add_field(name=f"Le membre **{user.display_name}** n'est plus mué.", value=f"__Raison=__ {reason}")
         await ctx.send(embed=embed)

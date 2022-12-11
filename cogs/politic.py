@@ -3,13 +3,14 @@ import discord
 from discord.ext import commands
 from discord.utils import get
 from cogs.Data.database_handler import DatabaseHandler
+from constants import GUILD_ID
 
 database_handler = DatabaseHandler('database.db')
 
 
 async def setup(bot):
-    await bot.add_cog(Government(bot), guilds=[discord.Object(id=976578012592111646)])
-    await bot.add_cog(Vote(bot), guilds=[discord.Object(id=976578012592111646)])
+    await bot.add_cog(Government(bot), guilds=[discord.Object(id=GUILD_ID)])
+    await bot.add_cog(Vote(bot), guilds=[discord.Object(id=GUILD_ID)])
 
 
 class Government(commands.Cog):
